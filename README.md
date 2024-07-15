@@ -1,9 +1,5 @@
 
 # AI Virtual Painter
-
-A brief description of what this project does and who it's for
-AI Virtual Painter
-
 Welcome to the AI Virtual Painter project! This application leverages Mediapipe, OpenCV, and Python to create a virtual painting experience. By using hand gestures, users can draw on a digital canvas without the need for physical drawing tools.
 
 
@@ -52,3 +48,6 @@ Run the Application
 - Numpy: For numerical operations.
 ## Contact
 For any questions or suggestions, please open an issue or contact the project maintainer at mokshmahajan2004@gmail.com.
+##
+Happy Drawing!!
+##
