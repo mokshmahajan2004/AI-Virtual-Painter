@@ -52,3 +52,6 @@ Run the Application
 - Numpy: For numerical operations.
 ## Contact
 For any questions or suggestions, please open an issue or contact the project maintainer at mokshmahajan2004@gmail.com.
+##
+Happy Drawing!
+##
