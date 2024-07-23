@@ -132,9 +132,20 @@ def main():
     st.write('Use two fingers to select color and one finger to draw.')
 
     st.subheader("Webcam Stream")
-    # Stream the video
-    webrtc_streamer(key="example", video_transformer_factory=VideoTransformer)
 
+    # Create a Streamlit placeholder for the video
+    video_placeholder = st.empty()
+
+    # Stream the video using webrtc_streamer
+    webrtc_ctx = webrtc_streamer(key="example", video_transformer_factory=VideoTransformer)
+
+    # Video placeholder usage
+    if webrtc_ctx.video_transformer:
+        frame = webrtc_ctx.video_transformer.get_frame()
+        if frame is not None:
+            video_placeholder.image(frame, channels='BGR', use_column_width=True)
+
+    # If a quit button is pressed, stop the app
     if st.button('Quit', key='quit_button'):
         st.stop()
 
