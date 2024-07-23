@@ -3,7 +3,6 @@ import numpy as np
 import mediapipe as mp
 import os
 import streamlit as st
-from PIL import Image
 from streamlit_webrtc import VideoTransformerBase, webrtc_streamer
 
 # Variables
@@ -119,24 +118,25 @@ class HandDetector:
         img[0:125, 0:1280] = self.header
         return img
 
-class VideoTransformer(VideoTransformerBase):
-    def __init__(self):
-        self.detector = HandDetector(detectionCon=0.85)
-    
-    def transform(self, frame):
-        img = self.detector.process_frame(frame)
-        return img
+   class VideoTransformer(VideoTransformerBase):
+       def __init__(self):
+           self.detector = HandDetector(detectionCon=0.85)
+       
+       def transform(self, frame):
+           img = self.detector.process_frame(frame)
+           return img
 
-def main():
-    st.title('AI Virtual Painter')
-    st.write('Use your hand to select color and draw.')
-    st.write('Use two fingers to select color and one finger to draw.')
+   def main():
+       st.title('AI Virtual Painter')
+       st.write('Use your hand to select color and draw.')
+       st.write('Use two fingers to select color and one finger to draw.')
 
-    st.subheader("Webcam Stream")
-    webrtc_streamer(key="example", video_transformer_factory=VideoTransformer)
+       st.subheader("Webcam Stream")
+       # Stream the video
+       webrtc_streamer(key="example", video_transformer_factory=VideoTransformer)
 
-    if st.button('Quit', key='quit_button'):
-        st.stop()
+       if st.button('Quit', key='quit_button'):
+           st.stop()
 
-if __name__ == "__main__":
-    main()
+   if __name__ == "__main__":
+       main()
