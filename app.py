@@ -8,7 +8,7 @@ from PIL import Image
 # Variables
 brushThickness = 15
 eraserThickness = 50
-folderPath = r"C:\Projects\Python\AI Virtual Painter\Header"
+folderPath = 'Header'
 
 # Load header images
 myList = os.listdir(folderPath)
