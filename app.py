@@ -4,6 +4,7 @@ import mediapipe as mp
 import os
 import streamlit as st
 from PIL import Image
+from streamlit_webrtc import VideoTransformerBase, webrtc_streamer
 
 # Variables
 brushThickness = 15
@@ -23,7 +24,6 @@ class HandDetector:
         self.maxHands = maxHands
         self.detectionCon = detectionCon
         self.trackCon = trackCon
-        
         self.mpHands = mp.solutions.hands
         self.hands = self.mpHands.Hands(
             static_image_mode=self.mode,
@@ -33,7 +33,12 @@ class HandDetector:
         )
         self.mpDraw = mp.solutions.drawing_utils
         self.tipIds = [4, 8, 12, 16, 20]
-    
+        self.lmList = []
+        self.xp, self.yp = 0, 0
+        self.imgCanvas = np.zeros((720, 1280, 3), np.uint8)
+        self.header = overLayList[0]
+        self.drawColor = (255, 0, 255)
+
     def findHands(self, img, draw=True):
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.results = self.hands.process(imgRGB)
@@ -70,89 +75,68 @@ class HandDetector:
                 fingers.append(0)
         return fingers
 
-def process_frame(frame, header, drawColor, detector, brushThickness, eraserThickness):
-    global xp, yp, imgCanvas
+    def process_frame(self, frame):
+        img = cv2.flip(frame, 1)
+        img = self.findHands(img)
+        lmList = self.findPosition(img, draw=False)
+        if lmList:
+            x1, y1 = lmList[8][1:]
+            x2, y2 = lmList[12][1:]
+            fingers = self.fingersUp()
+            if fingers[1] and fingers[2]:
+                if y1 < 125:
+                    if 250 < x1 < 450:
+                        self.header = overLayList[0]
+                        self.drawColor = (255, 0, 255)
+                    elif 550 < x1 < 750:
+                        self.header = overLayList[1]
+                        self.drawColor = (255, 0, 0)
+                    elif 800 < x1 < 950:
+                        self.header = overLayList[2]
+                        self.drawColor = (0, 255, 0)
+                    elif 1050 < x1 < 1200:
+                        self.header = overLayList[3]
+                        self.drawColor = (0, 0, 0)
+                cv2.rectangle(img, (x1, y1 - 25), (x2, y2 + 25), self.drawColor, cv2.FILLED)
+            if fingers[1] and not fingers[2]:
+                cv2.circle(img, (x1, y1), 15, self.drawColor, cv2.FILLED)
+                if self.xp == 0 and self.yp == 0:
+                    self.xp, self.yp = x1, y1
+                if self.drawColor == (0, 0, 0):
+                    cv2.line(img, (self.xp, self.yp), (x1, y1), self.drawColor, eraserThickness)
+                    cv2.line(self.imgCanvas, (self.xp, self.yp), (x1, y1), self.drawColor, eraserThickness)
+                else:
+                    cv2.line(img, (self.xp, self.yp), (x1, y1), self.drawColor, brushThickness)
+                    cv2.line(self.imgCanvas, (self.xp, self.yp), (x1, y1), self.drawColor, brushThickness)
+                self.xp, self.yp = x1, y1
 
-    img = cv2.flip(frame, 1)
-    img = detector.findHands(img)
-    lmList = detector.findPosition(img, draw=False)
-    if lmList:
-        x1, y1 = lmList[8][1:]
-        x2, y2 = lmList[12][1:]
-        fingers = detector.fingersUp()
-        if fingers[1] and fingers[2]:
-            if y1 < 125:
-                if 250 < x1 < 450:
-                    header = overLayList[0]
-                    drawColor = (255, 0, 255)
-                elif 550 < x1 < 750:
-                    header = overLayList[1]
-                    drawColor = (255, 0, 0)
-                elif 800 < x1 < 950:
-                    header = overLayList[2]
-                    drawColor = (0, 255, 0)
-                elif 1050 < x1 < 1200:
-                    header = overLayList[3]
-                    drawColor = (0, 0, 0)
-            cv2.rectangle(img, (x1, y1 - 25), (x2, y2 + 25), drawColor, cv2.FILLED)
-        if fingers[1] and not fingers[2]:
-            cv2.circle(img, (x1, y1), 15, drawColor, cv2.FILLED)
-            if xp == 0 and yp == 0:
-                xp, yp = x1, y1
-            if drawColor == (0, 0, 0):
-                cv2.line(img, (xp, yp), (x1, y1), drawColor, eraserThickness)
-                cv2.line(imgCanvas, (xp, yp), (x1, y1), drawColor, eraserThickness)
-            else:
-                cv2.line(img, (xp, yp), (x1, y1), drawColor, brushThickness)
-                cv2.line(imgCanvas, (xp, yp), (x1, y1), drawColor, brushThickness)
-            xp, yp = x1, y1
+            imgGray = cv2.cvtColor(self.imgCanvas, cv2.COLOR_BGR2GRAY)
+            _, imgInv = cv2.threshold(imgGray, 50, 255, cv2.THRESH_BINARY_INV)
+            imgInv = cv2.cvtColor(imgInv, cv2.COLOR_GRAY2BGR)
+            img = cv2.bitwise_and(img, imgInv)
+            img = cv2.bitwise_or(img, self.imgCanvas)
 
-        imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
-        _, imgInv = cv2.threshold(imgGray, 50, 255, cv2.THRESH_BINARY_INV)
-        imgInv = cv2.cvtColor(imgInv, cv2.COLOR_GRAY2BGR)
-        img = cv2.bitwise_and(img, imgInv)
-        img = cv2.bitwise_or(img, imgCanvas)
+        img[0:125, 0:1280] = self.header
+        return img
 
-    img[0:125, 0:1280] = header
-    return img, header, drawColor
+class VideoTransformer(VideoTransformerBase):
+    def __init__(self):
+        self.detector = HandDetector(detectionCon=0.85)
+    
+    def transform(self, frame):
+        img = self.detector.process_frame(frame)
+        return img
 
 def main():
-    global xp, yp, imgCanvas
-
     st.title('AI Virtual Painter')
     st.write('Use your hand to select color and draw.')
     st.write('Use two fingers to select color and one finger to draw.')
 
-    detector = HandDetector(detectionCon=0.85)
-    drawColor = (255, 0, 255)
-    header = overLayList[0]
-    imgCanvas = np.zeros((720, 1280, 3), np.uint8)
+    st.subheader("Webcam Stream")
+    webrtc_streamer(key="example", video_transformer_factory=VideoTransformer)
 
-    xp, yp = 0, 0
-
-    cap = cv2.VideoCapture(0)
-    cap.set(3, 1280)
-    cap.set(4, 720)
-
-    video_placeholder = st.empty()
-    quit_button_pressed = st.button('Quit', key='quit_button')
-
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        img, header, drawColor = process_frame(frame, header, drawColor, detector, brushThickness, eraserThickness)
-
-        # Convert image to RGB and update the video placeholder
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        video_placeholder.image(img_rgb, channels='RGB', use_column_width=True)
-
-        if quit_button_pressed:
-            break
-
-    cap.release()
-
+    if st.button('Quit', key='quit_button'):
+        st.stop()
 
 if __name__ == "__main__":
     main()
