@@ -21,7 +21,7 @@ Prerequisites
 
 ## Clone the Repository
 ```bash
-git clone https://github.com/yourusername/ai-virtual-painter.git
+git clone https://github.com/mokshmahajan2004/AI-Virtual-Painter.git
 cd AI-Virtual-Painter
 ```
 ## Install Required Packages
